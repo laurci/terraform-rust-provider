@@ -1,0 +1,11 @@
+provider_installation {
+  dev_overrides {
+    "ubicloud/ubicloud" = "<PATH>/target/debug"
+    "namecheap/namecheap" = "<PATH>/target/debug"
+    "hashicorp/tls" = "<PATH>/target/debug"
+    "ansible/ansible" = "<PATH>/target/debug"
+    "hashicorp/random" = "<PATH>/target/debug"
+    "OJFord/wireguard" = "<PATH>/target/debug"
+  }
+  direct {}
+}

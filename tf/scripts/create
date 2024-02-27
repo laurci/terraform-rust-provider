@@ -1,0 +1,6 @@
+#!/bin/bash
+
+terraform apply --var-file=dev.tfvars --auto-approve
+./scripts/playbook ./playbook/prereq.ansible.yml
+./scripts/playbook ./playbook/master.ansible.yml
+./scripts/playbook ./playbook/worker.ansible.yml

@@ -1,0 +1,42 @@
+- hosts: worker
+  become: yes
+  tasks:
+    - name: "Configure wg0"
+      copy:
+        dest: /etc/wireguard/wg0.conf
+        content: |
+          [Interface]
+          Address = {{ wg_internal_ip }}/32
+
+          PrivateKey = {{ wg_self_private_key }}
+
+          [Peer]
+          PublicKey = {{ wg_master_public_key }}
+
+          Endpoint = {{ master_public_ip }}:51871
+
+          AllowedIPs = {{ cidr }}/24
+
+          PersistentKeepalive = 20
+    
+    - name: "Configure wg0"
+      shell:
+        cmd: sudo wg-quick up wg0 && touch /tmp/wg0.done
+        creates: /tmp/wg0.done
+
+    - name: "Prepare k3s"
+      copy:
+        dest: /tmp/k3s.sh
+        content: |
+          curl -sfL https://get.k3s.io | \
+          K3S_URL=https://{{ master_internal_ip }}:6443 \
+          K3S_TOKEN="{{ k8s_token }}" \
+          sh -s - --node-label node={{ k8s_worker_label }} \
+              --node-ip {{ internal_ip }} \
+              --node-external-ip {{ self_public_ip }} \
+              --flannel-iface wg0 && touch /tmp/k3s.done
+
+    - name: "Install k3s"
+      shell:
+        cmd: sudo bash /tmp/k3s.sh
+        creates: /tmp/k3s.done

@@ -1,0 +1,90 @@
+- hosts: master
+  become: yes
+  tasks:
+    - name: "Configure wg0"
+      copy:
+        dest: /etc/wireguard/wg0.conf
+        content: |
+          [Interface]
+          
+          Address = {{ internal_ip }}
+          PostUp = /etc/wireguard/add-nat.sh
+          PostDown = /etc/wireguard/del-nat.sh
+
+          ListenPort = 51871
+
+          PrivateKey = {{ wg_self_private_key }}
+
+          MTU = 1420
+
+          [Peer]
+          PublicKey = {{ wg_worker1_public_key }}
+          AllowedIPs = {{ wg_worker1_internal_ip }}/32
+
+          [Peer]
+          PublicKey = {{ wg_worker2_public_key }}
+          AllowedIPs = {{ wg_worker2_internal_ip }}/32
+    
+    - name: "Configure add-nat"
+      copy:
+        dest: /etc/wireguard/add-nat.sh
+        mode: a+x
+        content: |
+          #!/bin/bash
+          IPT="/usr/sbin/iptables"
+
+          IN_FACE="ens3"
+          WG_FACE="wg0"
+          SUB_NET="{{ cidr }}/24"
+          WG_PORT="51871"
+
+          $IPT -t nat -I POSTROUTING 1 -s $SUB_NET -o $IN_FACE -j MASQUERADE
+          $IPT -I INPUT 1 -i $WG_FACE -j ACCEPT
+          $IPT -I FORWARD 1 -i $IN_FACE -o $WG_FACE -j ACCEPT
+          $IPT -I FORWARD 1 -i $WG_FACE -o $IN_FACE -j ACCEPT
+          $IPT -I INPUT 1 -i $IN_FACE -p udp --dport $WG_PORT -j ACCEPT
+    
+    - name: "Configure del-nat"
+      copy:
+        dest: /etc/wireguard/del-nat.sh
+        mode: a+x
+        content: |
+          #!/bin/bash
+          IPT="/usr/sbin/iptables"
+
+          IN_FACE="ens3"
+          WG_FACE="wg0"
+          SUB_NET="{{ cidr }}/24"
+          WG_PORT="51871"
+
+          $IPT -t nat -D POSTROUTING -s $SUB_NET -o $IN_FACE -j MASQUERADE
+          $IPT -D INPUT -i $WG_FACE -j ACCEPT
+          $IPT -D FORWARD -i $IN_FACE -o $WG_FACE -j ACCEPT
+          $IPT -D FORWARD -i $WG_FACE -o $IN_FACE -j ACCEPT
+          $IPT -D INPUT -i $IN_FACE -p udp --dport $WG_PORT -j ACCEPT
+    
+    - name: "Configure wg0"
+      shell:
+        cmd: sudo wg-quick up wg0 && touch /tmp/wg0.done
+        creates: /tmp/wg0.done
+
+    - name: "Prepare k3s"
+      copy:
+        dest: /tmp/k3s.sh
+        content: |
+          curl -sfL https://get.k3s.io | sh -s - \
+          --token {{ k8s_token }} \
+          --write-kubeconfig-mode 644 \
+          --disable servicelb \
+          --disable traefik \
+          --disable metrics-server \
+          --disable local-storage \
+          --node-external-ip {{ self_public_ip }} \
+          --tls-san {{ self_public_ip }} \
+          --advertise-address {{ internal_ip }} \
+          --flannel-iface wg0 && touch /tmp/k3s.done
+
+    - name: "Install k3s"
+      shell:
+        cmd: sudo bash /tmp/k3s.sh
+        creates: /tmp/k3s.done

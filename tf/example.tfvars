@@ -1,0 +1,6 @@
+ubicloud_email    = "...."
+ubicloud_password = "..."
+ubicloud_project  = "..."
+namecheap_user    = "..."
+namecheap_api_key = "..."
+root_domain       = "..."

@@ -1,0 +1,8 @@
+/target
+*.log
+.terraformrc
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!example.tfvars
+tf/.terraform

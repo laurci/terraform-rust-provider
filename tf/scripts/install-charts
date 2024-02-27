@@ -1,0 +1,12 @@
+#!/bin/sh
+helm upgrade --install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
+  --namespace cert-manager --create-namespace \
+  --version v1.13.3 \
+  --set prometheus.enabled=false \
+  --set installCRDs=true
+
+helm upgrade --install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+   --set controller.hostNetwork=true,controller.service.type="",controller.kind=DaemonSet \
+  --namespace ingress-nginx --create-namespace
